@@ -2,14 +2,27 @@ import numpy as np
 import jax.numpy as jnp
 from matplotlib import pyplot as plt
 
+# initial point
+x0i = 0
+x1i = 0
+x2i = 0
+
+# final point
+x0f = -1
+x1f = 1
+x2f = np.pi
+
+# eventually
+x0c = 0
+x1c = 1
+R = 0.5
+delta = 0.1
+c = 1e-6
+
 with open('res_org.npy', 'rb') as f:
     res_org = np.load(f)
 T_org = res_org[-1]
 x0_org, x1_org, x2_org, u0_org, u1_org = jnp.split(res_org[:-1], 5)
-
-x0c = 0
-x1c = 1
-R = 0.5
 
 with open('res_001.npy', 'rb') as f:
     res_001 = np.load(f)
@@ -27,7 +40,7 @@ T_01 = res_01[-1]
 x0_01, x1_01, x2_01, y_01, u0_01, u1_01 = jnp.split(res_01[:-1], 6)
 
 def g(x0, x1):
-    return R - jnp.sqrt((x0 - x0c) ** 2 + (x1 - x1c) ** 2)
+    return R ** 2 - ((x0 - x0c) ** 2 + (x1 - x1c) ** 2)
 
 def ode_rhs_6(t, x, v):
     t_a = 1
@@ -59,7 +72,7 @@ def constraint(z):
         res = res.at[:, 0].set(x.at[:, 0].get() - jnp.array([0., 0., 0., 0.]))
         # 'solve' the ode-system
         for j in range(x0.size-1):
-            # implicite euler scheme or direct method ?
+            # direct method (explicite euler scheme)
             res = res.at[:, j+1].set(x.at[:, j+1].get() 
                                      - x.at[:, j].get() 
                                      - T/x0.size * ode_rhs_6(T/x0.size*(j+1),
@@ -73,7 +86,7 @@ def constraint(z):
         res = res.at[:, 0].set(x.at[:, 0].get() - jnp.array([0., 0., 0.]))
         # 'solve' the ode-system
         for j in range(x0.size-1):
-            # implicite euler scheme or direct method ?
+            # direct method (explicite euler scheme)
             res = res.at[:, j+1].set(x.at[:, j+1].get() 
                                      - x.at[:, j].get() 
                                      - T/x0.size * ode_rhs_5(
@@ -91,8 +104,8 @@ axs['Left'].plot(x0_005, x1_005, label = 'Eventually: '+ r'$\delta = 0.05$')
 axs['Left'].plot(x0_01, x1_01, label = 'Eventually: '+ r'$\delta = 0.1$')
 circle = plt.Circle((x0c, x1c), R, color = 'r', alpha = 0.5)
 axs['Left'].add_patch(circle)
-axs['Left'].set_xlim([-2, 5])
-axs['Left'].set_ylim([-2, 5])
+axs['Left'].set_xlim([-2, 2])
+axs['Left'].set_ylim([-2, 2])
 axs['Left'].legend()
 axs['Left'].set_xlabel(r'$x_0$')
 axs['Left'].set_ylabel(r'$x_1$')
@@ -107,7 +120,7 @@ axs['TopRight'].plot(np.arange(0, T_005, T_005 / x0_005.size)[:x0_005.size],
 axs['TopRight'].plot(np.arange(0, T_01, T_01 / x0_01.size)[:x0_01.size],
                      u0_01)
 axs['TopRight'].set_ylim([-1.1, 1.1])
-axs['TopRight'].set_xlabel('time sample')
+axs['TopRight'].set_xlabel('t (s)')
 axs['TopRight'].set_ylabel(r'$u_0$')
 
 axs['BottomRight'].plot(np.arange(0, T_org, T_org / x0_org.size)[:x0_org.size], 
@@ -119,31 +132,42 @@ axs['BottomRight'].plot(np.arange(0, T_005, T_005 / x0_005.size)[:x0_005.size],
 axs['BottomRight'].plot(np.arange(0, T_01, T_01 / x0_01.size)[:x0_01.size],
                         u1_01)
 axs['BottomRight'].set_ylim([-1.1, 1.1])
-axs['BottomRight'].set_xlabel('time sample')
+axs['BottomRight'].set_xlabel('t (s)')
 axs['BottomRight'].set_ylabel(r'$u_1$')
 
 fig.savefig('dubins_time.png')
 fig.show()
 
 fig = plt.figure(figsize=(16, 8))
-axs = fig.subplot_mosaic([['Left', 'TopRight'],['Left', 'BottomRight']],
-                          gridspec_kw={'width_ratios':[2, 1]})
-axs['Left'].plot(np.arange(0, T_org, T_org / x0_org.size)[:x0_org.size], 
+axs = fig.subplot_mosaic([['TopLeft', 'TopRight'],['BottomLeft', 'BottomRight']],
+                          gridspec_kw={'width_ratios':[1, 1]})
+axs['TopLeft'].plot(np.arange(0, T_org, T_org / x0_org.size)[:x0_org.size], 
                  R - np.sqrt((x0_org - x0c) ** 2 + (x1_org - x1c) ** 2), 
                  label = 'Original Problem')
-axs['Left'].plot(np.arange(0, T_001, T_001 / x0_001.size)[:x0_001.size], 
+axs['TopLeft'].plot(np.arange(0, T_001, T_001 / x0_001.size)[:x0_001.size], 
                  R - np.sqrt((x0_001 - x0c) ** 2 + (x1_001 - x1c) ** 2), 
                  label = 'Eventually: '+ r'$\delta = 0.01$')
-axs['Left'].plot(np.arange(0, T_005, T_005 / x0_005.size)[:x0_005.size], 
+axs['TopLeft'].plot(np.arange(0, T_005, T_005 / x0_005.size)[:x0_005.size], 
                  R - np.sqrt((x0_005 - x0c) ** 2 + (x1_005 - x1c) ** 2), 
                  label = 'Eventually: '+ r'$\delta = 0.05$')
-axs['Left'].plot(np.arange(0, T_01, T_01 / x0_01.size)[:x0_01.size], 
+axs['TopLeft'].plot(np.arange(0, T_01, T_01 / x0_01.size)[:x0_01.size], 
                  R - np.sqrt((x0_01 - x0c) ** 2 + (x1_01 - x1c) ** 2), 
                  label = 'Eventually: '+ r'$\delta = 0.1$')
-axs['Left'].axhline(y=0, color='r', linestyle='--')
-axs['Left'].set_xlabel('t (s)')
-axs['Left'].set_ylabel(r'$g(x(t))$')
-axs['Left'].legend()
+axs['TopLeft'].axhline(y=0, color='r', linestyle='--')
+axs['TopLeft'].set_xlabel('t (s)')
+axs['TopLeft'].set_ylabel(r'$g(x(t))$')
+axs['TopLeft'].legend()
+
+axs['BottomLeft'].plot(np.arange(0, T_org, T_org / x0_org.size)[:x0_org.size], 
+                        x2_org, label = 'Original Problem')
+axs['BottomLeft'].plot(np.arange(0, T_001, T_001 / x0_001.size)[:x0_001.size], 
+                        x2_001, label = 'Eventually: '+ r'$\delta = 0.01$')
+axs['BottomLeft'].plot(np.arange(0, T_005, T_005 / x0_005.size)[:x0_005.size], 
+                        x2_005, label = 'Eventually: '+ r'$\delta = 0.05$')
+axs['BottomLeft'].plot(np.arange(0, T_01, T_01 / x0_01.size)[:x0_01.size], 
+                        x2_01, label = 'Eventually: '+ r'$\delta = 0.1$')
+axs['BottomLeft'].set_xlabel('t (s)')
+axs['BottomLeft'].set_ylabel(r'$x_2$')
 
 axs['TopRight'].plot(np.arange(0, T_org, T_org / x0_org.size)[:x0_org.size], 
                      x0_org, label = 'Original Problem')
