@@ -14,33 +14,33 @@ config.update('jax_platform_name', 'cpu')
 N = 200
 
 # initial point
-x0i = 0
-x1i = 0
-x2i = 0
-yi = 0
+x0i = 0.
+x1i = 0.
+x2i = 0.
+yi = 0.
 
 # final point
-x0f = -1
-x1f = 1
-x2f = np.pi
+x0f = -1.
+x1f = 1.
+x2f = - np.pi / 2
 
 # eventually
-x0c = 0
-x1c = 1
+x0c = 0.
+x1c = 1.
 R = 0.5
-delta = 1.
+delta = 0.0005
 c = 1e-8
 
 def objective(z):
     T = z[-1]
-    x0, x1, x2, y, u0, u1 = jnp.split(z[:-1], 6)
+    # x0, x1, x2, y, u0, u1 = jnp.split(z[:-1], 6)
     # pen = jnp.max(jnp.array([0, delta - y[-1]])) # penalization when y(T) < delta
     # distance = jnp.sum(jnp.sqrt(jnp.diff(x0)**2 + jnp.diff(x1)**2))
     # energy = jnp.sum(u0**2 + u1**2)*T/x0.size
     return T
 
 def eq_constraint(z):
-    x0, x1, x2, u0, u1 = jnp.split(z[:-1], 5)
+    x0, x1, x2, y, u0, u1 = jnp.split(z[:-1], 6)
     return (x0[-1] - x0f)**2 + (x1[-1] - x1f)**2
 
 def ineq_constraint(z):
@@ -58,7 +58,7 @@ def ode_rhs(x, v):
     xdot0 = jnp.cos(x2) * u0
     xdot1 = jnp.sin(x2) * u0
     xdot2 = u1
-    ydot  = nn.softmax((jnp.maximum(jnp.zeros(x0.size), g(x0, x1))) ** 2)
+    ydot  = (jnp.maximum(jnp.zeros(x0.size), g(x0, x1))) ** 2
     return jnp.asarray([xdot0, xdot1, xdot2, ydot])
 
 def constraint(z):
@@ -103,24 +103,32 @@ con_ineq_jac = jit(jacfwd(con_ineq_jit))  # jacobian
 # np.random.seed(32)
 # z0 = - np.random.random(N * 6 + 1)
 
-# initial point: solution of thwe original problem
+# initial point: solution of the original problem
 # z0 = - np.ones(N * 6 + 1)
 # with open('res_org.npy', 'rb') as f:
 #     res_org = np.load(f)
 # z0[:3*N] = res_org[:3*N]
-# z0[3*N:4*N] = np.zeros(N) + 0.01
+# z0[3*N : 4*N] = np.zeros(N) + 0.01
 # z0[4*N-1:] = res_org[3*N-1:]
+
+# initial point: straight line
+# z0 = - np.ones(N * 6 + 1)
+# z0[:2*N] = np.append(
+#     np.arange(-1., 0., 1./N)[::-1],
+#     np.arange(0., 1., 1./N))
+# z0[2*N : 4*N] = np.zeros(2 * N) + 0.01
+# z0[-1] = 100
 
 # initial point: a feasible solution
 np.random.seed(32)
-z0 = - np.random.random(N * 6 + 1)
+z0 = np.ones(N * 6 + 1)
 z0[ : 2*N] = np.concatenate((
     0.5 * np.sin(np.arange(0., np.pi, 2 * np.pi / N)),
     np.arange(- 1., 0., 2 * 1. / N)[::-1],
     0.5 - 0.5 * np.cos(np.arange(0., np.pi, 2 * np.pi / N)),
     np.ones(int(N / 2))))
-z0[2*N : 4*N] = np.zeros(2 * N) + 0.1
-z0[-1] = 10000
+z0[2*N : 4*N] = np.zeros(2 * N) + 0.01
+z0[-1] = 100
 
 # variable bounds
 bnds = [(None, None) for i in range(z0.size)]
@@ -128,8 +136,8 @@ for i in range(z0.size):
     if i > 4 * N - 1 :
         bnds[i] = (-1, 1)
     elif i > 3 * N - 1 :
-        bnds[-1] = (0, None)
-bnds[-1] = (0, None)
+        bnds[i] = (0, None)
+bnds[-1] = (0.1, None)
 
 # constraints:
 cons = [{'type': 'eq', 'fun': con_jit, 'jac':con_jac},
@@ -144,5 +152,5 @@ res = minimize_ipopt(obj_jit, jac=obj_grad, x0=z0, bounds=bnds,
                                 'acceptable_constr_viol_tol': 1e-12})
 print(res)
 
-with open('res_01.npy', 'wb') as f:
+with open('res_00005.npy', 'wb') as f:
     np.save(f, res.x)

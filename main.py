@@ -12,6 +12,7 @@ config.update('jax_platform_name', 'cpu')
 
 # time grid
 N = 200
+
 # initial point
 x0i = 0.
 x1i = 0.
@@ -87,6 +88,7 @@ z0[2*N:3*N] = np.zeros(N) + 0.1
 z0[-1] = 10
 
 # initial point: a feasible solution
+# z0 = - np.ones(N * 5 + 1)
 # z0[ : 2*N] = np.concatenate((
 #     0.5 * np.sin(np.arange(0., np.pi, 2 * np.pi / N)),
 #     np.arange(- 1., 0., 2 * 1. / N)[::-1],
