@@ -111,7 +111,7 @@ for i in range(len(file_list)):
     axs['Left'].plot(d['x0_{0}'.format(file_list[i])],
                      d['x1_{0}'.format(file_list[i])],
                      label = file_name[i])
-circle = plt.Circle((x0c, x1c), R, color = 'r', alpha = 0.5)
+circle = plt.Circle((x0c, x1c), R, color = 'g', alpha = 0.5)
 axs['Left'].add_patch(circle)
 axs['Left'].set_xlim([-2, 2])
 axs['Left'].set_ylim([-2, 2])
