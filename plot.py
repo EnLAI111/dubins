@@ -29,7 +29,7 @@ def ode_rhs_6(t, x, v):
     xdot0 = jnp.cos(x2) * u0
     xdot1 = jnp.sin(x2) * u0
     xdot2 = u1
-    ydot  = jnp.max(jnp.asarray([0, g(x0, x1)]))**2
+    ydot  = (jnp.maximum(jnp.zeros(x0.size), g(x0, x1))) ** 2
     return jnp.asarray([xdot0, xdot1, xdot2, ydot])
 
 def ode_rhs_5(x, v):
@@ -50,12 +50,11 @@ def constraint(z):
         # initial values
         res = res.at[:, 0].set(x.at[:, 0].get() - jnp.array([0., 0., 0., 0.]))
         # 'solve' the ode-system
-        for j in range(x0.size-1):
-            # direct method (explicite euler scheme)
-            res = res.at[:, j+1].set(x.at[:, j+1].get() 
-                                     - x.at[:, j].get() 
-                                     - T/x0.size * ode_rhs_6(T/x0.size*(j+1),
-                                         x.at[:, j].get(), v.at[:, j].get()))
+        # direct method (explicite euler scheme)
+        res = res.at[:, 1:].set(x.at[:, 1:].get()
+                                - x.at[:, :-1].get()
+                                - T/x0.size * ode_rhs_6(
+                                    x.at[:, :-1].get(), v.at[:, :-1].get()))
     elif(z.size - 1) % 5 == 0:
         x0, x1, x2, u0, u1 = jnp.split(z[:-1], 5)
         res = jnp.zeros((3, x0.size))
@@ -64,12 +63,11 @@ def constraint(z):
         # initial values
         res = res.at[:, 0].set(x.at[:, 0].get() - jnp.array([0., 0., 0.]))
         # 'solve' the ode-system
-        for j in range(x0.size-1):
-            # direct method (explicite euler scheme)
-            res = res.at[:, j+1].set(x.at[:, j+1].get() 
-                                     - x.at[:, j].get() 
-                                     - T/x0.size * ode_rhs_5(
-                                         x.at[:, j].get(), v.at[:, j].get()))
+        # direct method (explicite euler scheme)
+        res = res.at[:, 1:].set(x.at[:, 1:].get()
+                                - x.at[:, :-1].get()
+                                - T/x0.size * ode_rhs_5(
+                                    x.at[:, :-1].get(), v.at[:, :-1].get()))
     return jnp.mean(abs(res), axis=0)
 
 
@@ -92,7 +90,7 @@ d['T_org'] = res_org[-1]
 d['x0_org'], d['x1_org'], d['x2_org'], d['u0_org'], d['u1_org'] = jnp.split(res_org[:-1], 5)
 
 for i in range(1, len(file_list)):
-    with open('res_' + file_list[i] +'.npy', 'rb') as f:
+    with open('res_' + file_list[i] + '.npy', 'rb') as f:
         d['res_{0}'.format(file_list[i])] = np.load(f)
     d['T_{0}'.format(file_list[i])] = d['res_{0}'.format(file_list[i])][-1]
     d['x0_{0}'.format(file_list[i])], \
@@ -140,12 +138,58 @@ axs['BottomRight'].set_ylim([-1.1, 1.1])
 axs['BottomRight'].set_xlabel('t (s)')
 axs['BottomRight'].set_ylabel(r'$u_1$')
 
-fig.savefig('dubins_time.png')
+fig.savefig('dubins_time_1.png', bbox_inches = 'tight', pad_inches = 0)
 fig.show()
 
 fig = plt.figure(figsize=(16, 8))
 axs = fig.subplot_mosaic([['TopLeft', 'TopRight'],['BottomLeft', 'BottomRight']],
                           gridspec_kw={'width_ratios':[1, 1]})
+
+for i in range(len(file_list)):
+    T_tmp = d['T_{0}'.format(file_list[i])]
+    x0_size_tmp = d['x0_{0}'.format(file_list[i])].size
+    x0_tmp = d['x0_{0}'.format(file_list[i])]
+    axs['TopLeft'].plot(np.arange(0, T_tmp, T_tmp / x0_size_tmp)[:x0_size_tmp], 
+                     x0_tmp, label = file_name[i])
+axs['TopLeft'].set_xlabel('t (s)')
+axs['TopLeft'].set_ylabel(r'$x_0$')
+
+for i in range(len(file_list)):
+    T_tmp = d['T_{0}'.format(file_list[i])]
+    x0_size_tmp = d['x0_{0}'.format(file_list[i])].size
+    x1_tmp = d['x1_{0}'.format(file_list[i])]
+    axs['BottomLeft'].plot(np.arange(0, T_tmp, T_tmp / x0_size_tmp)[:x0_size_tmp], 
+                     x1_tmp, label = file_name[i])
+axs['BottomLeft'].set_xlabel('t (s)')
+axs['BottomLeft'].set_ylabel(r'$x_1$')
+
+for i in range(len(file_list)):
+    T_tmp = d['T_{0}'.format(file_list[i])]
+    x0_size_tmp = d['x0_{0}'.format(file_list[i])].size
+    x2_tmp = d['x2_{0}'.format(file_list[i])]
+    axs['TopRight'].plot(np.arange(0, T_tmp, T_tmp / x0_size_tmp)[:x0_size_tmp], 
+                     x2_tmp, label = file_name[i])
+axs['TopRight'].set_xlabel('t (s)')
+axs['TopRight'].set_ylabel(r'$x_2$')
+
+axs['BottomRight'].plot(np.arange(0, T_org, T_org / x0_org.size)[:x0_org.size],
+                  np.zeros(x0_org.size))
+for i in range(1, len(file_list)):
+    T_tmp = d['T_{0}'.format(file_list[i])]
+    x0_size_tmp = d['x0_{0}'.format(file_list[i])].size
+    y_tmp = d['y_{0}'.format(file_list[i])]
+    axs['BottomRight'].plot(np.arange(0, T_tmp, T_tmp / x0_size_tmp)[:x0_size_tmp], 
+                     y_tmp, label = file_name[i])
+axs['BottomRight'].set_xlabel('time (s)')
+axs['BottomRight'].set_ylabel(r'$y$')
+
+fig.savefig('dubins_time_2.png', bbox_inches='tight')
+fig.show()
+
+fig = plt.figure(figsize=(16, 8))
+axs = fig.subplot_mosaic([['TopLeft', 'TopRight'],['BottomLeft', 'BottomRight']],
+                          gridspec_kw={'width_ratios':[1, 1]})
+
 for i in range(len(file_list)):
     T_tmp = d['T_{0}'.format(file_list[i])]
     x0_size_tmp = d['x0_{0}'.format(file_list[i])].size
@@ -161,57 +205,12 @@ axs['TopLeft'].legend()
 for i in range(len(file_list)):
     T_tmp = d['T_{0}'.format(file_list[i])]
     x0_size_tmp = d['x0_{0}'.format(file_list[i])].size
-    x2_tmp = d['x2_{0}'.format(file_list[i])]
-    axs['BottomLeft'].plot(np.arange(0, T_tmp, T_tmp / x0_size_tmp)[:x0_size_tmp], 
-                     x2_tmp, label = file_name[i])
-axs['BottomLeft'].set_xlabel('t (s)')
-axs['BottomLeft'].set_ylabel(r'$x_2$')
-
-for i in range(len(file_list)):
-    T_tmp = d['T_{0}'.format(file_list[i])]
-    x0_size_tmp = d['x0_{0}'.format(file_list[i])].size
-    x0_tmp = d['x0_{0}'.format(file_list[i])]
-    axs['TopRight'].plot(np.arange(0, T_tmp, T_tmp / x0_size_tmp)[:x0_size_tmp], 
-                     x0_tmp, label = file_name[i])
-axs['TopRight'].set_xlabel('t (s)')
-axs['TopRight'].set_ylabel(r'$x_0$')
-
-for i in range(len(file_list)):
-    T_tmp = d['T_{0}'.format(file_list[i])]
-    x0_size_tmp = d['x0_{0}'.format(file_list[i])].size
-    x1_tmp = d['x1_{0}'.format(file_list[i])]
-    axs['BottomRight'].plot(np.arange(0, T_tmp, T_tmp / x0_size_tmp)[:x0_size_tmp], 
-                     x2_tmp, label = file_name[i])
-axs['BottomRight'].set_xlabel('t (s)')
-axs['BottomRight'].set_ylabel(r'$x_1$')
-
-fig.savefig('dubins_time_2.png')
-fig.show()
-
-fig = plt.figure(figsize=(16, 8))
-axs = fig.subplot_mosaic([['Left', 'Right']],
-                          gridspec_kw={'width_ratios':[1, 1]})
-
-for i in range(len(file_list)):
-    T_tmp = d['T_{0}'.format(file_list[i])]
-    x0_size_tmp = d['x0_{0}'.format(file_list[i])].size
     res_tmp = d['res_{0}'.format(file_list[i])]
-    axs['Left'].plot(np.arange(0, T_tmp, T_tmp / x0_size_tmp)[:x0_size_tmp], 
+    axs['TopRight'].plot(np.arange(0, T_tmp, T_tmp / x0_size_tmp)[:x0_size_tmp], 
                      constraint(res_tmp), label = file_name[i])
-axs['Left'].legend()
-axs['Left'].set_ylabel('dynamic constriant')
-axs['Left'].set_xlabel('time (s)')
+axs['TopRight'].legend()
+axs['TopRight'].set_ylabel('dynamic constriant')
+axs['TopRight'].set_xlabel('time (s)')
 
-axs['Right'].plot(np.arange(0, T_org, T_org / x0_org.size)[:x0_org.size],
-                  np.zeros(x0_org.size))
-for i in range(1, len(file_list)):
-    T_tmp = d['T_{0}'.format(file_list[i])]
-    x0_size_tmp = d['x0_{0}'.format(file_list[i])].size
-    y_tmp = d['y_{0}'.format(file_list[i])]
-    axs['Right'].plot(np.arange(0, T_tmp, T_tmp / x0_size_tmp)[:x0_size_tmp], 
-                     y_tmp, label = file_name[i])
-axs['Right'].set_xlabel('time (s)')
-axs['Right'].set_ylabel(r'$y$')
-
-fig.savefig('dubins_time_3.png')
+fig.savefig('dubins_time_3.png', bbox_inches = 'tight', pad_inches = 0)
 fig.show()
