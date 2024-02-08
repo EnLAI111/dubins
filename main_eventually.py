@@ -28,16 +28,16 @@ x2f = - np.pi / 2
 x0c = 0.
 x1c = 1.
 R = 0.5
-delta = 0.0005
-c = 1e-8
+delta = 0.1
+c = 1.
 
 def objective(z):
     T = z[-1]
-    # x0, x1, x2, y, u0, u1 = jnp.split(z[:-1], 6)
-    # pen = jnp.max(jnp.array([0, delta - y[-1]])) # penalization when y(T) < delta
+    x0, x1, x2, y, u0, u1 = jnp.split(z[:-1], 6)
+    pen = jnp.max(jnp.array([0, delta - y[-1]])) # penalization when y(T) < delta
     # distance = jnp.sum(jnp.sqrt(jnp.diff(x0)**2 + jnp.diff(x1)**2))
     # energy = jnp.sum(u0**2 + u1**2)*T/x0.size
-    return T
+    return T + c * pen
 
 def eq_constraint(z):
     x0, x1, x2, y, u0, u1 = jnp.split(z[:-1], 6)
@@ -141,8 +141,8 @@ bnds[-1] = (0.1, None)
 
 # constraints:
 cons = [{'type': 'eq', 'fun': con_jit, 'jac':con_jac},
-        {'type': 'eq', 'fun': con_eq_jit, 'jac': con_eq_jac},
-        {'type': 'ineq', 'fun': con_ineq_jit, 'jac': con_ineq_jac}]
+        {'type': 'eq', 'fun': con_eq_jit, 'jac': con_eq_jac}]
+        # {'type': 'ineq', 'fun': con_ineq_jit, 'jac': con_ineq_jac}]
 
 # call the solver
 res = minimize_ipopt(obj_jit, jac=obj_grad, x0=z0, bounds=bnds,
@@ -152,5 +152,5 @@ res = minimize_ipopt(obj_jit, jac=obj_grad, x0=z0, bounds=bnds,
                                 'acceptable_constr_viol_tol': 1e-12})
 print(res)
 
-with open('res_00005.npy', 'wb') as f:
+with open('res_01_pen.npy', 'wb') as f:
     np.save(f, res.x)
