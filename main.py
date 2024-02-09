@@ -8,7 +8,9 @@ from cyipopt import minimize_ipopt
 config.update("jax_enable_x64", True)
 # We use the CPU instead of GPU und mute all warnings if no GPU/TPU is found.
 config.update('jax_platform_name', 'cpu')
-# z = (x1(t0) .... x1(tN) x2(t0) .... x2(tN) x3(t0) .... x3(tN) u1(t0) .... u1(tN) u2(t0) .... u2(tN) T)
+# z = (x0(t0) .... x0(tN) x1(t0) .... x1(tN) 
+#      x2(t0) .... x2(tN)
+#      u0(t0) .... u0(tN) u1(t0) .... u1(tN) T)
 
 # time grid
 N = 200
